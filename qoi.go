@@ -5,11 +5,11 @@ package qoi
 QOI - The “Quite OK Image” format for fast, lossless image compression
 
 Original version by Dominic Szablewski - https://phoboslab.org
-Go version by Makapuf makapuf2@gmail.com
+Go version by Xavier-Frédéric Moulet
 
 -- LICENSE: The MIT License(MIT)
 
-Copyright(c) 2021 Dominic Szablewski
+Copyright(c) 2021 Xavier-Frédéric Moulet
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files(the "Software"), to deal in
@@ -36,7 +36,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"image"
-	"image/color"
 	"io"
 )
 
@@ -59,6 +58,8 @@ const QOIMagic = "qoif"
 func QOI_COLOR_HASH(r, g, b, a byte) byte {
 	return byte(r ^ g ^ b ^ a)
 }
+
+type pixel [4]byte
 
 func Decode(r io.Reader) (image.Image, error) {
 	// read header
@@ -83,14 +84,14 @@ func Decode(r io.Reader) (image.Image, error) {
 	binary.Read(b, binary.LittleEndian, &height)
 	binary.Read(b, binary.LittleEndian, &size)
 
-	img := image.NewRGBA(image.Rect(0, 0, int(width), int(height)))
+	img := image.NewNRGBA(image.Rect(0, 0, int(width), int(height)))
 
-	var index [64][4]byte
+	var index [64]pixel
 
 	run := 0
 
 	pixels := img.Pix // pixels yet to write
-	px := [4]byte{0, 0, 0, 255}
+	px := pixel{0, 0, 0, 255}
 	for len(pixels) > 0 {
 		if run > 0 {
 			run--
@@ -116,7 +117,7 @@ func Decode(r io.Reader) (image.Image, error) {
 				if err != nil {
 					return nil, err
 				}
-				run = int((((b1 & 0x1f) << 8) | (b2)) + 32)
+				run = (((int(b1) & 0x1f) << 8) | int(b2)) + 32
 
 			case ((b1 & QOI_MASK_2) == QOI_DIFF_8):
 				px[0] += ((b1 >> 4) & 0x03) - 1
@@ -177,7 +178,7 @@ func Decode(r io.Reader) (image.Image, error) {
 					px[3] = b2
 				}
 			default:
-				px = [4]byte{255, 0, 255, 255}
+				px = pixel{255, 0, 255, 255}
 			}
 
 			index[int(QOI_COLOR_HASH(px[0], px[1], px[2], px[3]))%len(index)] = px
@@ -209,15 +210,17 @@ func Encode(w io.Writer, m image.Image) error {
 	err = binary.Write(&out, binary.LittleEndian, uint32(0)) // size, will be fixed later
 	_ = err
 
-	// TODO use a RGBA image / pix directly (faster)
-
-	var index [64]color.RGBA
-	px_prev := color.RGBA{0, 0, 0, 255}
+	var index [64]pixel
+	px_prev := pixel{0, 0, 0, 255}
 	run := 0
 
 	for y := minY; y < maxY; y++ {
 		for x := minX; x < maxX; x++ {
-			px := m.At(x, y).(color.RGBA)
+			// extract pixel
+			c := m.At(x, y)
+			c_r, c_g, c_b, c_a := c.RGBA()
+			px := pixel{byte(c_r >> 8), byte(c_g >> 8), byte(c_b >> 8), byte(c_a >> 8)}
+
 			if px == px_prev {
 				run++
 			}
@@ -235,20 +238,16 @@ func Encode(w io.Writer, m image.Image) error {
 			}
 
 			if px != px_prev {
-
-				px_r, px_g, px_b, px_a := px.RGBA()
-
-				var index_pos byte = QOI_COLOR_HASH(byte(px_r>>8), byte(px_g>>8), byte(px_b>>8), byte(px_a>>8)) % 64
+				var index_pos byte = QOI_COLOR_HASH(px[0], px[1], px[2], px[3]) % 64
 				if index[index_pos] == px {
 					out.WriteByte(QOI_INDEX | index_pos)
 				} else {
 					index[index_pos] = px
 
-					px_prev_r, px_prev_g, px_prev_b, px_prev_a := px_prev.RGBA()
-					vr := (int(px_r) - int(px_prev_r)) >> 8
-					vg := (int(px_g) - int(px_prev_g)) >> 8
-					vb := (int(px_b) - int(px_prev_b)) >> 8
-					va := (int(px_a) - int(px_prev_a)) >> 8
+					vr := int(px[0]) - int(px_prev[0])
+					vg := int(px[1]) - int(px_prev[1])
+					vb := int(px[2]) - int(px_prev[2])
+					va := int(px[3]) - int(px_prev[3])
 
 					if vr > -16 && vr < 17 && vg > -16 && vg < 17 && vb > -16 && vb < 17 && va > -16 && va < 17 {
 						switch {
@@ -278,16 +277,16 @@ func Encode(w io.Writer, m image.Image) error {
 						}
 						out.WriteByte(mask)
 						if vr != 0 {
-							out.WriteByte(byte(px_r >> 8))
+							out.WriteByte(px[0])
 						}
 						if vg != 0 {
-							out.WriteByte(byte(px_g >> 8))
+							out.WriteByte(px[1])
 						}
 						if vb != 0 {
-							out.WriteByte(byte(px_b >> 8))
+							out.WriteByte(px[2])
 						}
 						if va != 0 {
-							out.WriteByte(byte(px_a >> 8))
+							out.WriteByte(px[3])
 						}
 					}
 
@@ -298,7 +297,7 @@ func Encode(w io.Writer, m image.Image) error {
 		}
 	}
 	binary.Write(&out, binary.LittleEndian, uint32(0))                                 // padding
-	binary.LittleEndian.PutUint16(out.Bytes()[size_pos:], uint16(len(out.Bytes())-12)) // fix size
+	binary.LittleEndian.PutUint32(out.Bytes()[size_pos:], uint32(len(out.Bytes())-12)) // fix size
 
 	w.Write(out.Bytes())
 

@@ -13,6 +13,7 @@ import (
 func main() {
 	if len(os.Args) != 3 {
 		fmt.Println("usage: " + os.Args[0] + " infile outfile\ninfile being png or qoi")
+		return
 	}
 	infile := os.Args[1]
 	outfile := os.Args[2]
