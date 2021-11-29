@@ -40,10 +40,6 @@ import (
 )
 
 const (
-	qoi_SRGB              = 0x00
-	qoi_SRGB_LINEAR_ALPHA = 0x01
-	qoi_LINEAR            = 0x02
-
 	qoi_INDEX   byte = 0b00_000000
 	qoi_RUN_8   byte = 0b010_00000
 	qoi_RUN_16  byte = 0b011_00000
@@ -109,18 +105,18 @@ func Decode(r io.Reader) (image.Image, error) {
 				run = (((int(b1) & 0x1f) << 8) | int(b2)) + 32
 
 			case ((b1 & qoi_MASK_2) == qoi_DIFF_8):
-				px[0] += ((b1 >> 4) & 0x03) - 1
-				px[1] += ((b1 >> 2) & 0x03) - 1
-				px[2] += (b1 & 0x03) - 1
+				px[0] += ((b1 >> 4) & 0x03) - 2
+				px[1] += ((b1 >> 2) & 0x03) - 2
+				px[2] += (b1 & 0x03) - 2
 
 			case ((b1 & qoi_MASK_3) == qoi_DIFF_16):
 				b2, err := b.ReadByte()
 				if err != nil {
 					return nil, err
 				}
-				px[0] += (b1 & 0x1f) - 15
-				px[1] += (b2 >> 4) - 7
-				px[2] += (b2 & 0x0f) - 7
+				px[0] += (b1 & 0x1f) - 16
+				px[1] += (b2 >> 4) - 8
+				px[2] += (b2 & 0x0f) - 8
 
 			case ((b1 & qoi_MASK_4) == qoi_DIFF_24):
 				b2, err := b.ReadByte()
@@ -132,10 +128,10 @@ func Decode(r io.Reader) (image.Image, error) {
 					return nil, err
 				}
 
-				px[0] += (((b1 & 0x0f) << 1) | (b2 >> 7)) - 15
-				px[1] += ((b2 & 0x7c) >> 2) - 15
-				px[2] += (((b2 & 0x03) << 3) | ((b3 & 0xe0) >> 5)) - 15
-				px[3] += (b3 & 0x1f) - 15
+				px[0] += (((b1 & 0x0f) << 1) | (b2 >> 7)) - 16
+				px[1] += ((b2 & 0x7c) >> 2) - 16
+				px[2] += (((b2 & 0x03) << 3) | ((b3 & 0xe0) >> 5)) - 16
+				px[3] += (b3 & 0x1f) - 16
 
 			case (b1 & qoi_MASK_4) == qoi_COLOR:
 				if b1&8 != 0 {
@@ -200,10 +196,12 @@ func Encode(w io.Writer, m image.Image) error {
 	if err := binary.Write(out, binary.BigEndian, uint32(maxY-minY)); err != nil {
 		return err
 	}
+	// channels
 	if err := binary.Write(out, binary.BigEndian, uint8(4)); err != nil {
 		return err
 	}
-	if err := binary.Write(out, binary.BigEndian, uint8(qoi_SRGB)); err != nil {
+	// 0b0000rgba colorspace
+	if err := binary.Write(out, binary.BigEndian, uint8(0)); err != nil {
 		return err
 	}
 
@@ -246,11 +244,20 @@ func Encode(w io.Writer, m image.Image) error {
 					vb := int(px[2]) - int(px_prev[2])
 					va := int(px[3]) - int(px_prev[3])
 
-					if vr > -16 && vr < 17 && vg > -16 && vg < 17 && vb > -16 && vb < 17 && va > -16 && va < 17 {
+					if vr > -17 && vr < 16 &&
+						vg > -17 && vg < 16 &&
+						vb > -17 && vb < 16 &&
+						va > -17 && va < 16 {
 						switch {
-						case va == 0 && vr > -3 && vr < 2 && vg > -3 && vg < 2 && vb > -3 && vb < 2:
+						case va == 0 &&
+							vr > -3 && vr < 2 &&
+							vg > -3 && vg < 2 &&
+							vb > -3 && vb < 2:
 							out.WriteByte(qoi_DIFF_8 | byte(((vr+2)<<4)|(vg+2)<<2|(vb+2)))
-						case va == 0 && vr > -17 && vr < 16 && vg > -9 && vg < 8 && vb > -9 && vb < 8:
+						case va == 0 &&
+							vr > -17 && vr < 16 &&
+							vg > -9 && vg < 8 &&
+							vb > -9 && vb < 8:
 							out.WriteByte(qoi_DIFF_16 | byte(vr+16))
 							out.WriteByte(byte(((vg + 8) << 4) | (vb + 8)))
 						default:
