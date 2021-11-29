@@ -213,8 +213,8 @@ func Encode(w io.Writer, m image.Image) error {
 
 	for y := minY; y < maxY; y++ {
 		for x := minX; x < maxX; x++ {
-			// extract pixel
-			c := m.At(x, y)
+			// extract pixel and convert to non-premultiplied
+			c := color.NRGBAModel.Convert(m.At(x, y))
 			c_r, c_g, c_b, c_a := c.RGBA()
 			px := pixel{byte(c_r >> 8), byte(c_g >> 8), byte(c_b >> 8), byte(c_a >> 8)}
 
