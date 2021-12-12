@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/xfmoulet/qoi"
+	"github.com/xfmoulet/qoi"
 )
 
 func main() {

@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"gitlab.com/xfmoulet/qoi"
+	"github.com/xfmoulet/qoi"
 )
 
 func main() {
