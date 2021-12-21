@@ -20,13 +20,13 @@ func main() {
 
 	f, err := os.Open(infile)
 	if err != nil {
-		fmt.Println("Error opening file: ", err)
+		fmt.Println("Error opening file:", err)
 		return
 	}
 
 	img, _, err := image.Decode(f)
 	if err != nil {
-		fmt.Println("Error decoding file: ", err)
+		fmt.Println("Error decoding file:", err)
 		return
 	}
 
@@ -36,7 +36,7 @@ func main() {
 
 	of, err := os.Create(outfile)
 	if err != nil {
-		fmt.Println("Error creating file: %v", err)
+		fmt.Println("Error creating file:", err)
 		return
 	}
 	if strings.HasSuffix(outfile, ".png") {
