@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"image"
 	"image/png"
-	"io/ioutil"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -20,27 +21,28 @@ func main() {
 		return
 	}
 	dir := os.Args[1]
-	files, err := ioutil.ReadDir(dir)
 
-	if err != nil {
-		fmt.Println("Error:", err)
-		return
-	}
-
-	for _, infile := range files {
-		if !strings.HasSuffix(infile.Name(), ".png") {
-			continue
+	filepath.WalkDir(dir, func(path string, infile fs.DirEntry, err error) error {
+		if err != nil {
+			return err
 		}
-		f, err := os.Open(dir + "/" + infile.Name())
+		if infile.IsDir() {
+			return nil
+		}
+
+		if !strings.HasSuffix(infile.Name(), ".png") {
+			return nil
+		}
+		f, err := os.Open(path)
 		if err != nil {
 			fmt.Println("Error opening file:", err)
-			return
+			return err
 		}
 
 		img, _, err := image.Decode(f)
 		if err != nil {
 			fmt.Println("Error decoding file:", err)
-			return
+			return err
 		}
 
 		var of bytes.Buffer
@@ -70,7 +72,8 @@ func main() {
 			enc_png_duration.Milliseconds(),
 			dec_qoi_duration.Milliseconds(),
 			dec_png_duration.Milliseconds(),
-			infile.Name())
+			path)
 
-	}
+		return nil
+	})
 }
