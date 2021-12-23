@@ -1,11 +1,11 @@
-# QOI - The “Quite OK Image” format for fast, lossless image compression
+# QOI - The “Quite OK Image” format for fast, lossless image compression - in Go 
 
-package and small utilities in pure Go, quite OK implementation
+Package and small utilities in pure Go, quite OK implementation
 
 See [qoi.h](https://github.com/phoboslab/qoi/blob/master/qoi.h) for
 the documentation.
 
-More info at https://phoboslab.org/log/2021/11/qoi-fast-lossless-image-compression
+More info at https://qoiformat.org/ 
 
 ## Performance
 
