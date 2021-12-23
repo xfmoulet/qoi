@@ -23,7 +23,7 @@ func main() {
 	files, err := ioutil.ReadDir(dir)
 
 	if err != nil {
-		fmt.Println("Error: ", err)
+		fmt.Println("Error:", err)
 		return
 	}
 
@@ -33,13 +33,13 @@ func main() {
 		}
 		f, err := os.Open(dir + "/" + infile.Name())
 		if err != nil {
-			fmt.Println("Error opening file: ", err)
+			fmt.Println("Error opening file:", err)
 			return
 		}
 
 		img, _, err := image.Decode(f)
 		if err != nil {
-			fmt.Println("Error decoding file: ", err)
+			fmt.Println("Error decoding file:", err)
 			return
 		}
 
